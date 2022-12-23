@@ -95,7 +95,7 @@ impl Emulator {
             if self.sound_timer == 1 {
                 // BEEP
             }
-            self.st -= 1;
+            self.sound_timer -= 1;
         }
     }
 }
