@@ -52,6 +52,18 @@ impl Emulator {
         new_emu.ram[..FONTSET_SIZE].copy_from_slice(&FONTSET);
         new_emu
     }
+    pub fn get_display(&self) -> &[bool] {
+        &self.screen
+    }
+    pub fn keypress(&mut self, idx: usize, pressed: bool) {
+        self.keys[idx] = pressed;
+    }
+    pub fn load(&mut self, data: &[u8]) {
+        let start = START_ADDR as usize;
+        let end = (START_ADDR as usize) + data.len();
+        self.ram[start..end].copy_from_slice(data);
+    }
+
     fn push(&mut self, val: u16) {
         self.stack[self.sp as usize] = val;
         self.sp += 1;
@@ -290,27 +302,27 @@ impl Emulator {
                 if !key_pressed {
                     self.pc -= 2;
                 }
-            },
+            }
             //set delay timer to register
             (0xF, _, 1, 5) => {
                 let reg = h_digit2 as usize;
                 self.delay_timer = self.v_registers[reg];
-            },
+            }
             //set sound timer to register
             (0xF, _, 1, 8) => {
                 let reg = h_digit2 as usize;
                 self.sound_timer = self.v_registers[reg];
-            },
+            }
             //add register to I
             (0xF, _, 1, 0xE) => {
                 let reg = h_digit2 as usize;
                 self.i_register = self.i_register.wrapping_add(self.v_registers[reg] as u16);
-            },
+            }
             //set I to location of sprite for digit in register
             (0xF, _, 2, 9) => {
                 let reg = h_digit2 as usize;
                 self.i_register = (self.v_registers[reg] * 5) as u16;
-            },
+            }
             //store BCD representation of register in memory
             (0xF, _, 3, 3) => {
                 let reg = h_digit2 as usize;
@@ -318,21 +330,21 @@ impl Emulator {
                 self.ram[self.i_register as usize] = val / 100;
                 self.ram[(self.i_register + 1) as usize] = (val / 10) % 10;
                 self.ram[(self.i_register + 2) as usize] = (val % 100) % 10;
-            },
+            }
             //store registers in memory
             (0xF, _, 5, 5) => {
                 let reg = h_digit2 as usize;
                 for i in 0..=reg {
                     self.ram[(self.i_register + i as u16) as usize] = self.v_registers[i];
                 }
-            },
+            }
             //read registers from memory
             (0xF, _, 6, 5) => {
                 let reg = h_digit2 as usize;
                 for i in 0..=reg {
                     self.v_registers[i] = self.ram[(self.i_register + i as u16) as usize];
                 }
-            },
+            }
             (_, _, _, _) => unimplemented!("Unimplemented opcode: {:X}", op),
         }
     }
