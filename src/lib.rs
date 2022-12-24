@@ -311,6 +311,28 @@ impl Emulator {
                 let reg = h_digit2 as usize;
                 self.i_register = (self.v_registers[reg] * 5) as u16;
             },
+            //store BCD representation of register in memory
+            (0xF, _, 3, 3) => {
+                let reg = h_digit2 as usize;
+                let val = self.v_registers[reg];
+                self.ram[self.i_register as usize] = val / 100;
+                self.ram[(self.i_register + 1) as usize] = (val / 10) % 10;
+                self.ram[(self.i_register + 2) as usize] = (val % 100) % 10;
+            },
+            //store registers in memory
+            (0xF, _, 5, 5) => {
+                let reg = h_digit2 as usize;
+                for i in 0..=reg {
+                    self.ram[(self.i_register + i as u16) as usize] = self.v_registers[i];
+                }
+            },
+            //read registers from memory
+            (0xF, _, 6, 5) => {
+                let reg = h_digit2 as usize;
+                for i in 0..=reg {
+                    self.v_registers[i] = self.ram[(self.i_register + i as u16) as usize];
+                }
+            },
             (_, _, _, _) => unimplemented!("Unimplemented opcode: {:X}", op),
         }
     }
