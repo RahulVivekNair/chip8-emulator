@@ -167,6 +167,60 @@ impl Emulator {
                 let reg2 = h_digit3 as usize;
                 self.v_registers[reg1] ^= self.v_registers[reg2];
             },
+            //add register to another register
+            (8,_,_,4) => {
+                let reg1 = h_digit2 as usize;
+                let reg2 = h_digit3 as usize;
+                let (val, overflow) = self.v_registers[reg1].overflowing_add(self.v_registers[reg2]);
+                self.v_registers[reg1] = val;
+                self.v_registers[0xF] = if overflow {1} else {0};
+            },
+            //subtract register from another register
+            (8,_,_,5) => {
+                let reg1 = h_digit2 as usize;
+                let reg2 = h_digit3 as usize;
+                let (val, overflow) = self.v_registers[reg1].overflowing_sub(self.v_registers[reg2]);
+                self.v_registers[reg1] = val;
+                self.v_registers[0xF] = if overflow {0} else {1};
+            },
+            //shift right and store dropped bit in VF
+            (8,_,_,6) => {
+                let reg1 = h_digit2 as usize;
+                self.v_registers[0xF] = self.v_registers[reg1] & 0x1;
+                self.v_registers[reg1] >>= 1;
+            },
+            //subtract register from another register
+            (8,_,_,7) => {
+                let reg1 = h_digit2 as usize;
+                let reg2 = h_digit3 as usize;
+                let (val, overflow) = self.v_registers[reg2].overflowing_sub(self.v_registers[reg1]);
+                self.v_registers[reg1] = val;
+                self.v_registers[0xF] = if overflow {0} else {1};
+            },
+            //shift left and store dropped bit in VF
+            (8,_,_,0xE) => {
+                let reg1 = h_digit2 as usize;
+                self.v_registers[0xF] = self.v_registers[reg1] >> 7;
+                self.v_registers[reg1] <<= 1;
+            },
+            //skip next instruction if reg values are not equal
+            (9,_,_,0) => {
+                let reg1 = h_digit2 as usize;
+                let reg2 = h_digit3 as usize;
+                if self.v_registers[reg1] != self.v_registers[reg2] {
+                    self.pc += 2;
+                } 
+            },
+            //set I to value
+            (0xA,_,_,_) => {
+                let val = op & 0x0FFF;
+                self.i_register = val;
+            },
+            //jump to address + value of register 0
+            (0xB,_,_,_) => {
+                let val = op & 0x0FFF;
+                self.pc = val + self.v_registers[0] as u16;
+            },
             (_, _, _, _) => unimplemented!("Unimplemented opcode: {:X}", op),
         }
     }
