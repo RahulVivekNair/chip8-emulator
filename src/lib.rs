@@ -77,9 +77,100 @@ impl Emulator {
     pub fn tick(&mut self) {
         // Fetch
         let op = self.fetch();
+
         // Decode
         // Execute
+        self.execute(op);
     }
+    fn execute(&mut self, op: u16) {
+        let h_digit1 = (op & 0xF000) >> 12;
+        let h_digit2 = (op & 0x0F00) >> 8;
+        let h_digit3 = (op & 0x00F0) >> 4;
+        let h_digit4 = op & 0x000F;
+
+        match (h_digit1, h_digit2, h_digit3, h_digit4) {
+            //NOP instruction
+            (0, 0, 0, 0) => return,
+            //Clear screen
+            (0, 0, 0xE, 0) => self.screen = [false; SCREEN_WIDTH * SCREEN_HEIGHT],
+            //Return from subroutine
+            (0, 0, 0xE, 0xE) => {
+                self.pc = self.pop();
+            },
+            //Jump to address
+            (1, _, _, _) => {
+                self.pc = op & 0x0FFF;
+            },
+            //Call subroutine
+            (2, _, _, _) => {
+                self.push(self.pc);
+                self.pc = op & 0x0FFF;
+            },
+            //skip next instruction
+            (3,_,_,_) => {
+                let reg = h_digit2;
+                let val = op & 0x00FF;
+                if self.v_registers[reg as usize] == val as u8 {
+                    self.pc += 2;
+                } 
+            },
+            //skip next instruction if not equal
+            (4,_,_,_) => {
+                let reg = h_digit2;
+                let val = op & 0x00FF;
+                if self.v_registers[reg as usize] != val as u8 {
+                    self.pc += 2;
+                } 
+            },
+            //skip next instruction if reg values are equal
+            (5,_,_,_) => {
+                let reg1 = h_digit2 as usize;
+                let reg2 = h_digit3 as usize;
+                if self.v_registers[reg1] == self.v_registers[reg2] {
+                    self.pc += 2;
+                } 
+            },
+            //set register to value
+            (6,_,_,_) => {
+                let reg = h_digit2 as usize;
+                let val = op & 0x00FF;
+                self.v_registers[reg] = val as u8;
+            },
+            //add value to register
+            (7,_,_,_) => {
+                let reg = h_digit2 as usize;
+                let val = op & 0x00FF;
+                //wrapping add to avoid overflowss
+                self.v_registers[reg] = self.v_registers[reg].wrapping_add(val as u8);
+            },
+            //set register to value of another register
+            (8,_,_,0) => {
+                let reg1 = h_digit2 as usize;
+                let reg2 = h_digit3 as usize;
+                self.v_registers[reg1] = self.v_registers[reg2];
+            },
+            //bitwise or
+            (8,_,_,1) => {
+                let reg1 = h_digit2 as usize;
+                let reg2 = h_digit3 as usize;
+                self.v_registers[reg1] |= self.v_registers[reg2];
+            },
+            //bitwise and
+            (8,_,_,2) => {
+                let reg1 = h_digit2 as usize;
+                let reg2 = h_digit3 as usize;
+                self.v_registers[reg1] &= self.v_registers[reg2];
+            },
+            //bitwise xor
+            (8,_,_,3) => {
+                let reg1 = h_digit2 as usize;
+                let reg2 = h_digit3 as usize;
+                self.v_registers[reg1] ^= self.v_registers[reg2];
+            },
+            (_, _, _, _) => unimplemented!("Unimplemented opcode: {:X}", op),
+        }
+    }
+
     fn fetch(&mut self) -> u16 {
         let higher_byte = self.ram[self.pc as usize] as u16;
         let lower_byte = self.ram[(self.pc + 1) as usize] as u16;
